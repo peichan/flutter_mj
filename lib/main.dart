@@ -9,6 +9,70 @@ void main() {
   runApp(MyApp());
 }
 
+bool isAllMentsu(List<int> hai) {
+  for (int i = 0; i < hai.length; i++) {
+    if (hai[i] >= 3) {  // コーツ
+      hai[i] -= 3;
+      return isAllMentsu(hai);
+    } else if (hai[i] > 0 && i < hai.length - 2) {  // シュンツ
+      if (hai[i + 1] == 0 || hai[i + 2] == 0) {
+        return false;
+      }
+      hai[i] -= 1;
+      hai[i + 1] -= 1;
+      hai[i + 2] -= 1;
+      return isAllMentsu(hai);
+    }
+  }
+  return hai.every((c) => c == 0);
+}
+
+bool isAgari(List<int> hai) {
+  if (hai.every((c) => c == 0 || c == 2)) {  // チートイツ
+    return true;
+  }
+  for (int i = 0; i < hai.length; i++) {
+    if (hai[i] >= 2) {
+      List<int> haiCopy = [...hai];
+      haiCopy[i] -= 2;
+      if (isAllMentsu(haiCopy)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+List<int> calcMachi(List<int> hai) {
+  List<int> haiCount = List<int>.generate(9, (i) => 0);
+  hai.forEach((e) { haiCount[e - 1] += 1; });
+
+  List<int> machi = [];
+  for (int i = 0; i < haiCount.length; i++) {
+    if (haiCount[i] < 4) {
+      List<int> haiCopy = [...haiCount];
+      haiCopy[i] += 1;
+      if (isAgari(haiCopy)) {
+        machi.add(i + 1);
+      }
+    }
+  }
+  return machi;
+}
+
+List<int> generateTehai() {
+  bool hasAgari = false;
+  List<int> tehai = [];
+  while (!hasAgari) {
+    var candidates = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9];
+    candidates.shuffle();
+    tehai = candidates.sublist(0, 13);
+    tehai.sort();
+    hasAgari = calcMachi(tehai).isNotEmpty;
+  }
+  return tehai;
+}
+
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
@@ -51,15 +115,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<int> _generateTehai() {
-    var candidates = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9];
-    candidates.shuffle();
-    var tehai = candidates.sublist(0, 13);
-    tehai.sort();
-    return tehai;
-  }
-
-  List<int> _tehai = [1, 1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9];
+  List<int> _tehai = generateTehai();
   List<bool> _buttonPressed = List<bool>.generate(9, (i) => false);
 
   void _changeTehai() {
@@ -69,7 +125,7 @@ class _MyHomePageState extends State<MyHomePage> {
       // so that the display can reflect the updated values. If we changed
       // _counter without calling setState(), then the build method would not be
       // called again, and so nothing would appear to happen.
-      _tehai = _generateTehai();
+      _tehai = generateTehai();
       _buttonPressed = List<bool>.generate(9, (i) => false);
     });
   }
@@ -129,7 +185,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Container(
                       padding: EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.orange.withOpacity(_buttonPressed[e - 1] ? 1 : 0)),
+                        color: Colors.green.withOpacity(_buttonPressed[e - 1] ? 1 : 0),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Image(image: AssetImage("images/p_ms${e}_1.gif")),
@@ -137,14 +193,76 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
               ).toList(),
             ),
+            Padding(
+              padding: EdgeInsets.only(top: 10),
+              child: ElevatedButton(
+                child: const Text('解答する'),
+                style: ElevatedButton.styleFrom(
+                  primary: Colors.green,
+                  onPrimary: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  List<int> machi = calcMachi(_tehai);
+                  bool isCorrect = List<int>.generate(9, (i) => i).every((e) => _buttonPressed[e] == machi.contains(e + 1));
+                  showDialog(
+                    context: context,
+                    builder: (_) {
+                      return AlertDialog(
+                        title: Center(child: Text(
+                            isCorrect ? "正解" : "不正解",
+                            style: TextStyle(
+                              color: isCorrect ? Colors.green : Colors.red,
+                            ),
+                        )),
+                        content: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: _tehai.map((e) => Image(image: AssetImage("images/p_ms${e}_1.gif"))).toList(),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: <Widget>[
+                                Text("正解は"),
+                                Padding(
+                                  padding: EdgeInsets.all(10),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: machi.map((e) => Image(image: AssetImage("images/p_ms${e}_1.gif"))).toList(),
+                                  )
+                                ),
+                                Text("待ち"),
+                              ],
+                            ),
+                            ElevatedButton(
+                              child: const Text('次の問題へ'),
+                              style: ElevatedButton.styleFrom(
+                                primary: Colors.green,
+                                onPrimary: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              onPressed: () {
+                                _changeTehai();
+                                Navigator.pop(context);
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _changeTehai,
-        tooltip: 'Change',
-        child: Icon(Icons.autorenew),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
